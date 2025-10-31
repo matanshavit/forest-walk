@@ -1,36 +1,119 @@
-import type * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import * as THREE from 'three'
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'
 
 export class ControlsManager {
-  public controls: OrbitControls
+  public controls: PointerLockControls
+  private velocity: THREE.Vector3
+  private direction: THREE.Vector3
+  private keys: { w: boolean; a: boolean; s: boolean; d: boolean }
+  private moveSpeed: number = 1.4 // Units per second (realistic human walking speed)
+  private dampingFactor: number = 10.0
 
-  constructor(camera: THREE.Camera, canvas: HTMLCanvasElement) {
-    this.controls = new OrbitControls(camera, canvas)
+  constructor(camera: THREE.Camera, scene: THREE.Scene) {
+    // Create PointerLockControls
+    this.controls = new PointerLockControls(camera, document.body)
 
-    // Configure controls
-    this.controls.enableDamping = true // Smooth camera movements
-    this.controls.dampingFactor = 0.05
-    this.controls.screenSpacePanning = false
+    // PointerLockControls requires adding its object to the scene
+    scene.add(this.controls.object)
 
-    // Limit vertical rotation (don't go below ground)
-    this.controls.minPolarAngle = 0
-    this.controls.maxPolarAngle = Math.PI / 2 - 0.1 // Slightly above horizon
+    // Initialize movement vectors
+    this.velocity = new THREE.Vector3()
+    this.direction = new THREE.Vector3()
+    this.keys = { w: false, a: false, s: false, d: false }
 
-    // Set zoom limits
-    this.controls.minDistance = 2
-    this.controls.maxDistance = 50
-
-    // Set target to look at origin (where tree is)
-    this.controls.target.set(0, 0, 0)
-
-    this.controls.update()
+    // Setup event listeners
+    this.setupPointerLock()
+    this.setupKeyboardInput()
   }
 
-  public update(): void {
-    this.controls.update()
+  private setupPointerLock(): void {
+    // Click to activate pointer lock
+    document.addEventListener('click', () => {
+      this.controls.lock()
+    })
+
+    // Optional: Show/hide instructions based on lock state
+    this.controls.addEventListener('lock', () => {
+      console.log('Pointer locked - use WASD to move, mouse to look')
+    })
+
+    this.controls.addEventListener('unlock', () => {
+      console.log('Pointer unlocked - click to re-enable controls')
+    })
+  }
+
+  private setupKeyboardInput(): void {
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
+      switch (event.key.toLowerCase()) {
+        case 'w':
+          this.keys.w = true
+          break
+        case 'a':
+          this.keys.a = true
+          break
+        case 's':
+          this.keys.s = true
+          break
+        case 'd':
+          this.keys.d = true
+          break
+        case 'escape':
+          this.controls.unlock()
+          break
+      }
+    })
+
+    document.addEventListener('keyup', (event: KeyboardEvent) => {
+      switch (event.key.toLowerCase()) {
+        case 'w':
+          this.keys.w = false
+          break
+        case 'a':
+          this.keys.a = false
+          break
+        case 's':
+          this.keys.s = false
+          break
+        case 'd':
+          this.keys.d = false
+          break
+      }
+    })
+  }
+
+  public update(delta: number): void {
+    // Apply damping (smooth deceleration)
+    this.velocity.x -= this.velocity.x * this.dampingFactor * delta
+    this.velocity.z -= this.velocity.z * this.dampingFactor * delta
+
+    // Calculate movement direction based on pressed keys
+    this.direction.set(0, 0, 0)
+    if (this.keys.w) this.direction.z -= 1
+    if (this.keys.s) this.direction.z += 1
+    if (this.keys.a) this.direction.x -= 1
+    if (this.keys.d) this.direction.x += 1
+
+    // Normalize direction to prevent faster diagonal movement
+    if (this.direction.length() > 0) {
+      this.direction.normalize()
+      // Add velocity based on direction and speed (acceleration * dampingFactor to reach desired speed)
+      this.velocity.x +=
+        this.direction.x * this.moveSpeed * this.dampingFactor * delta
+      this.velocity.z +=
+        this.direction.z * this.moveSpeed * this.dampingFactor * delta
+    }
+
+    // Apply movement to camera (only if pointer is locked)
+    // Multiply by delta to convert velocity (units/sec) to distance (units)
+    if (this.controls.isLocked) {
+      this.controls.moveRight(this.velocity.x * delta)
+      this.controls.moveForward(-this.velocity.z * delta)
+    }
   }
 
   public dispose(): void {
     this.controls.dispose()
+    // Note: Event listeners are on document, will be cleaned up on page unload
+    // For SPA, would need to track and remove handlers explicitly
   }
 }

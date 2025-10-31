@@ -1,8 +1,8 @@
 import './style.css'
 import { ControlsManager } from './controls/Controls'
 import { LightingManager } from './lighting/Lights'
+import { Forest } from './objects/Forest'
 import { Ground } from './objects/Ground'
-import { Tree } from './objects/Tree'
 import { CameraManager } from './scene/Camera'
 import { SceneManager } from './scene/Scene'
 import { PerformanceMonitor } from './utils/Performance'
@@ -11,7 +11,7 @@ class App {
   private sceneManager: SceneManager
   private cameraManager: CameraManager
   private ground: Ground
-  private tree: Tree
+  private forest: Forest
   private lightingManager: LightingManager
   private controlsManager: ControlsManager
   private performanceMonitor: PerformanceMonitor
@@ -25,9 +25,9 @@ class App {
     this.ground = new Ground()
     this.ground.addToScene(this.sceneManager.scene)
 
-    // Create and add tree at origin
-    this.tree = new Tree()
-    this.tree.addToScene(this.sceneManager.scene)
+    // Create and add forest with 100 trees
+    this.forest = new Forest()
+    this.forest.addToScene(this.sceneManager.scene)
 
     // Create and add lighting
     this.lightingManager = new LightingManager()
@@ -36,7 +36,7 @@ class App {
     // Create controls
     this.controlsManager = new ControlsManager(
       this.cameraManager.camera,
-      this.sceneManager.canvas,
+      this.sceneManager.scene,
     )
 
     // Create performance monitor
@@ -60,8 +60,11 @@ class App {
     // Begin performance monitoring
     this.performanceMonitor.begin()
 
-    // Update controls (needed for damping)
-    this.controlsManager.update()
+    // Get delta time for frame-rate-independent movement
+    const delta = this.sceneManager.getDelta()
+
+    // Update controls with delta time (needed for velocity-based movement)
+    this.controlsManager.update(delta)
 
     // Render scene
     this.sceneManager.render(this.cameraManager.camera)
@@ -76,7 +79,7 @@ class App {
     }
     window.removeEventListener('resize', this.handleResize)
     this.ground.dispose()
-    this.tree.dispose()
+    this.forest.dispose()
     this.lightingManager.dispose()
     this.controlsManager.dispose()
     this.performanceMonitor.dispose()

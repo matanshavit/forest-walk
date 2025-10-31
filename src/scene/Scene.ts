@@ -4,6 +4,7 @@ export class SceneManager {
   public scene: THREE.Scene
   public renderer: THREE.WebGLRenderer
   public canvas: HTMLCanvasElement
+  public clock: THREE.Clock
 
   constructor() {
     // Create scene
@@ -19,6 +20,9 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
+    // Create clock for delta time tracking
+    this.clock = new THREE.Clock()
+
     // Append canvas to body
     document.body.appendChild(this.canvas)
   }
@@ -26,6 +30,10 @@ export class SceneManager {
   public resize(): void {
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  }
+
+  public getDelta(): number {
+    return this.clock.getDelta()
   }
 
   public render(camera: THREE.Camera): void {

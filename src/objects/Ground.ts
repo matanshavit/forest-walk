@@ -4,8 +4,8 @@ export class Ground {
   public mesh: THREE.Mesh
 
   constructor() {
-    // Create plane geometry (20x20)
-    const geometry = new THREE.PlaneGeometry(20, 20)
+    // Create plane geometry (50x50)
+    const geometry = new THREE.PlaneGeometry(50, 50)
 
     // Create brown material for earth
     const material = new THREE.MeshStandardMaterial({

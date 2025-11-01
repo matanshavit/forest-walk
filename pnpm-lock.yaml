@@ -11,6 +11,15 @@ importers:
 
   .:
     dependencies:
+      '@dgreenheck/ez-tree':
+        specifier: ^1.0.0
+        version: 1.0.0(three@0.181.0)
+      alea:
+        specifier: ^1.0.1
+        version: 1.0.1
+      simplex-noise:
+        specifier: ^4.0.3
+        version: 4.0.3
       stats.js:
         specifier: ^0.17.0
         version: 0.17.0
@@ -178,6 +187,11 @@ packages:
     resolution: {integrity: sha512-bVUNBqG6aznYcYjTjnc3+Cat/iBgbgpflxbIBTnsHTX0YVpnmINPEkSRWymT2Q8aSH3Y7aKnEbunilkYe8TybA==}
     engines: {node: '>=v18'}
 
+  '@dgreenheck/ez-tree@1.0.0':
+    resolution: {integrity: sha512-5ZOsqiXUdEbPgAxPp8sjWYqtVSGaK9nuN8/H1A/ert3yA5HzPWOFtXT1+VqdJB42bCX0zYbi+N1F4ibg+GXGtg==}
+    peerDependencies:
+      three: '>=0.167'
+
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
 
@@ -316,6 +330,9 @@ packages:
 
   ajv@8.17.1:
     resolution: {integrity: sha512-B/gBuNg5SiMTrPkC+A2+cW0RszwxYmn6VYxB/inlBStS5nx6xHIt/ehKRhIMhqusl7a8LjQoZnjCs5vhwxOQ1g==}
+
+  alea@1.0.1:
+    resolution: {integrity: sha512-QU+wv+ziDXaMxRdsQg/aH7sVfWdhKps5YP97IIwFkHCsbDZA3k87JXoZ5/iuemf4ntytzIWeScrRpae8+lDrXA==}
 
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
@@ -773,6 +790,9 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  simplex-noise@4.0.3:
+    resolution: {integrity: sha512-qSE2I4AngLQG7BXqoZj51jokT4WUXe8mOBrvfOXpci8+6Yu44+/dD5zqDpOx3Ux792eamTd2lLcI8jqFntk/lg==}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -832,6 +852,9 @@ packages:
 
   tweakpane@3.1.10:
     resolution: {integrity: sha512-rqwnl/pUa7+inhI2E9ayGTqqP0EPOOn/wVvSWjZsRbZUItzNShny7pzwL3hVlaN4m9t/aZhsP0aFQ9U5VVR2VQ==}
+
+  tweakpane@4.0.5:
+    resolution: {integrity: sha512-rxEXdSI+ArlG1RyO6FghC4ZUX8JkEfz8F3v1JuteXSV0pEtHJzyo07fcDG+NsJfN5L39kSbCYbB9cBGHyuI/tQ==}
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
@@ -1023,6 +1046,11 @@ snapshots:
       '@types/conventional-commits-parser': 5.0.2
       chalk: 5.6.2
 
+  '@dgreenheck/ez-tree@1.0.0(three@0.181.0)':
+    dependencies:
+      three: 0.181.0
+      tweakpane: 4.0.5
+
   '@dimforge/rapier3d-compat@0.12.0': {}
 
   '@emnapi/core@1.6.0':
@@ -1140,6 +1168,8 @@ snapshots:
       fast-uri: 3.1.0
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
+
+  alea@1.0.1: {}
 
   ansi-regex@5.0.1: {}
 
@@ -1491,6 +1521,8 @@ snapshots:
 
   semver@7.7.3: {}
 
+  simplex-noise@4.0.3: {}
+
   source-map-js@1.2.1: {}
 
   split2@4.2.0: {}
@@ -1544,6 +1576,8 @@ snapshots:
     optional: true
 
   tweakpane@3.1.10: {}
+
+  tweakpane@4.0.5: {}
 
   typescript@5.9.3: {}
 

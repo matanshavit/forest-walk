@@ -111,6 +111,14 @@ export class ControlsManager {
     }
   }
 
+  public isMoving(): boolean {
+    // Check if player is moving based on velocity threshold
+    const velocityMagnitude = Math.sqrt(
+      this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z,
+    )
+    return velocityMagnitude > 0.1 // Small threshold to avoid head bob when nearly stopped
+  }
+
   public dispose(): void {
     this.controls.dispose()
     // Note: Event listeners are on document, will be cleaned up on page unload

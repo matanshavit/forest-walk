@@ -9,7 +9,11 @@ export class SceneManager {
   constructor() {
     // Create scene
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x87ceeb) // Sky blue background
+
+    // Add fog for atmospheric depth
+    const fogColor = 0xd4e5db // Soft misty green
+    this.scene.fog = new THREE.FogExp2(fogColor, 0.015) // Adjust density as needed
+    this.scene.background = new THREE.Color(fogColor)
 
     // Create renderer
     this.canvas = document.createElement('canvas')

@@ -2,15 +2,15 @@ import './style.css'
 import { ControlsManager } from './controls/Controls'
 import { LightingManager } from './lighting/Lights'
 import { Forest } from './objects/Forest'
-import { Ground } from './objects/Ground'
 import { CameraManager } from './scene/Camera'
 import { SceneManager } from './scene/Scene'
 import { PerformanceMonitor } from './utils/Performance'
+import { Terrain } from './world/Terrain'
 
 class App {
   private sceneManager: SceneManager
   private cameraManager: CameraManager
-  private ground: Ground
+  private terrain: Terrain
   private forest: Forest
   private lightingManager: LightingManager
   private controlsManager: ControlsManager
@@ -21,13 +21,19 @@ class App {
     this.sceneManager = new SceneManager()
     this.cameraManager = new CameraManager()
 
-    // Create and add ground
-    this.ground = new Ground()
-    this.ground.addToScene(this.sceneManager.scene)
+    // Create terrain (procedurally generated infinite world)
+    this.terrain = new Terrain(this.sceneManager.scene)
 
-    // Create and add forest with 100 trees
-    this.forest = new Forest()
-    this.forest.addToScene(this.sceneManager.scene)
+    // Create forest (procedurally generated trees per chunk)
+    this.forest = new Forest(this.sceneManager.scene, this.terrain)
+
+    // Wire up terrain chunk callbacks to generate/remove trees
+    this.terrain.setOnChunkLoad((chunkX, chunkZ) => {
+      this.forest.generateChunkTrees(chunkX, chunkZ)
+    })
+    this.terrain.setOnChunkUnload((chunkX, chunkZ) => {
+      this.forest.unloadChunkTrees(chunkX, chunkZ)
+    })
 
     // Create and add lighting
     this.lightingManager = new LightingManager()
@@ -66,6 +72,12 @@ class App {
     // Update controls with delta time (needed for velocity-based movement)
     this.controlsManager.update(delta)
 
+    // Update head bob based on movement state
+    this.cameraManager.updateHeadBob(delta, this.controlsManager.isMoving())
+
+    // Update terrain chunks based on camera position
+    this.terrain.update(this.cameraManager.camera.position, performance.now())
+
     // Render scene
     this.sceneManager.render(this.cameraManager.camera)
 
@@ -78,7 +90,7 @@ class App {
       cancelAnimationFrame(this.animationFrameId)
     }
     window.removeEventListener('resize', this.handleResize)
-    this.ground.dispose()
+    this.terrain.dispose()
     this.forest.dispose()
     this.lightingManager.dispose()
     this.controlsManager.dispose()

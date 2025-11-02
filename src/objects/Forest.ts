@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { FrustumCuller } from '../utils/FrustumCuller'
+import { DEFAULT_LOD_CONFIG, LODManager } from '../utils/LODManager'
 import { NoiseGenerator } from '../utils/NoiseGenerator'
 import { TreeGenerator } from '../utils/TreeGenerator'
 import type { Terrain } from '../world/Terrain'
@@ -12,83 +14,115 @@ interface TreeInstance {
 }
 
 export class Forest {
-  private branchMeshes: THREE.InstancedMesh[] = []
-  private leavesMeshes: THREE.InstancedMesh[] = []
+  // 3 sizes × 3 LOD levels = 9 branch meshes, 9 leaf meshes
+  private branchMeshes: THREE.InstancedMesh[][] = [] // [sizeIndex][lodLevel]
+  private leavesMeshes: THREE.InstancedMesh[][] = [] // [sizeIndex][lodLevel]
   private noiseGenerator: NoiseGenerator
   private terrain: Terrain
   private scene: THREE.Scene
+  private lodManager: LODManager
+  private cameraPosition: THREE.Vector3 = new THREE.Vector3()
+  private frustumCuller: FrustumCuller
 
   // Store tree instances per chunk
   private chunkTrees: Map<string, TreeInstance[]> = new Map()
 
-  // Pre-generated tree geometries and materials
-  private treeData: Array<{
-    branchGeometry: THREE.BufferGeometry
-    branchMaterial: THREE.Material
-    leavesGeometry: THREE.BufferGeometry
-    leavesMaterial: THREE.Material
-  }> = []
+  // Pre-generated tree geometries and materials for all LOD levels
+  private treeData: Array<
+    Array<{
+      branchGeometry: THREE.BufferGeometry
+      branchMaterial: THREE.Material
+      leavesGeometry: THREE.BufferGeometry
+      leavesMaterial: THREE.Material
+    }>
+  > = [] // [sizeIndex][lodLevel]
 
-  private readonly maxInstancesPerSize = 5000 // Max trees per size category
+  private readonly maxInstancesPerSize = 5000
 
   constructor(scene: THREE.Scene, terrain: Terrain) {
     this.scene = scene
     this.terrain = terrain
-    this.noiseGenerator = new NoiseGenerator() // Same seed as terrain
+    this.noiseGenerator = new NoiseGenerator()
+    this.lodManager = new LODManager(DEFAULT_LOD_CONFIG)
+    this.frustumCuller = new FrustumCuller()
 
-    // Create three tree variations (small, medium, large)
-    const trees = TreeGenerator.createAllVariations()
+    // Create all tree variations with LOD levels
+    const treesWithLOD = TreeGenerator.createAllVariationsWithLOD()
 
-    // Pre-generate tree data
-    for (let i = 0; i < trees.length; i++) {
-      const tree = trees[i]
+    // Pre-generate tree data for all sizes and LOD levels
+    for (let sizeIndex = 0; sizeIndex < 3; sizeIndex++) {
+      const lodLevels = []
 
-      // Store branch geometry and material
-      const branchGeometry = tree.branchesMesh.geometry
-      const branchMaterialSource = tree.branchesMesh.material
-      const branchMaterial = Array.isArray(branchMaterialSource)
-        ? branchMaterialSource[0].clone()
-        : branchMaterialSource.clone()
+      for (let lodLevel = 0; lodLevel < 3; lodLevel++) {
+        const tree = treesWithLOD[sizeIndex][lodLevel]
 
-      // Store leaves geometry and material
-      const leavesGeometry = tree.leavesMesh.geometry
-      const leavesMaterialSource = tree.leavesMesh.material
-      const leavesMaterial = Array.isArray(leavesMaterialSource)
-        ? leavesMaterialSource[0].clone()
-        : leavesMaterialSource.clone()
+        const branchGeometry = tree.branchesMesh.geometry
+        const branchMaterialSource = tree.branchesMesh.material
+        const branchMaterial = Array.isArray(branchMaterialSource)
+          ? branchMaterialSource[0].clone()
+          : branchMaterialSource.clone()
 
-      this.treeData.push({
-        branchGeometry,
-        branchMaterial,
-        leavesGeometry,
-        leavesMaterial,
-      })
+        const leavesGeometry = tree.leavesMesh.geometry
+        const leavesMaterialSource = tree.leavesMesh.material
+        const leavesMaterial = Array.isArray(leavesMaterialSource)
+          ? leavesMaterialSource[0].clone()
+          : leavesMaterialSource.clone()
+
+        lodLevels.push({
+          branchGeometry,
+          branchMaterial,
+          leavesGeometry,
+          leavesMaterial,
+        })
+      }
+
+      this.treeData.push(lodLevels)
     }
 
-    // Create instanced meshes with max capacity
-    for (let i = 0; i < 3; i++) {
-      const data = this.treeData[i]
+    // Create instanced meshes: 3 sizes × 3 LOD levels
+    for (let sizeIndex = 0; sizeIndex < 3; sizeIndex++) {
+      const branchMeshesForSize: THREE.InstancedMesh[] = []
+      const leavesMeshesForSize: THREE.InstancedMesh[] = []
 
-      const branchMesh = new THREE.InstancedMesh(
-        data.branchGeometry,
-        data.branchMaterial,
-        this.maxInstancesPerSize,
-      )
-      branchMesh.castShadow = true
-      branchMesh.count = 0 // Start with no instances visible
-      this.branchMeshes.push(branchMesh)
-      this.scene.add(branchMesh)
+      for (let lodLevel = 0; lodLevel < 3; lodLevel++) {
+        const data = this.treeData[sizeIndex][lodLevel]
 
-      const leavesMesh = new THREE.InstancedMesh(
-        data.leavesGeometry,
-        data.leavesMaterial,
-        this.maxInstancesPerSize,
-      )
-      leavesMesh.castShadow = true
-      leavesMesh.count = 0 // Start with no instances visible
-      this.leavesMeshes.push(leavesMesh)
-      this.scene.add(leavesMesh)
+        const branchMesh = new THREE.InstancedMesh(
+          data.branchGeometry,
+          data.branchMaterial,
+          this.maxInstancesPerSize,
+        )
+        branchMesh.castShadow = true
+        branchMesh.count = 0
+        branchMesh.frustumCulled = false // We'll do manual culling
+        branchMeshesForSize.push(branchMesh)
+        this.scene.add(branchMesh)
+
+        const leavesMesh = new THREE.InstancedMesh(
+          data.leavesGeometry,
+          data.leavesMaterial,
+          this.maxInstancesPerSize,
+        )
+        leavesMesh.castShadow = true
+        leavesMesh.count = 0
+        leavesMesh.frustumCulled = false // We'll do manual culling
+        leavesMeshesForSize.push(leavesMesh)
+        this.scene.add(leavesMesh)
+      }
+
+      this.branchMeshes.push(branchMeshesForSize)
+      this.leavesMeshes.push(leavesMeshesForSize)
     }
+  }
+
+  /**
+   * Update LOD levels and frustum culling based on camera
+   * Should be called every frame
+   */
+  public update(camera: THREE.Camera): void {
+    this.cameraPosition.copy(camera.position)
+    this.frustumCuller.updateFromCamera(camera)
+    this.rebuildInstancedMeshes()
   }
 
   /**
@@ -183,13 +217,17 @@ export class Forest {
   }
 
   /**
-   * Rebuild all instanced meshes from current chunk tree data
+   * Rebuild all instanced meshes with LOD based on camera distance
    */
   private rebuildInstancedMeshes(): void {
     const dummy = new THREE.Object3D()
 
-    // Reset counts
-    const counts = { small: 0, medium: 0, large: 0 }
+    // Reset counts for all LOD levels
+    const counts = {
+      small: [0, 0, 0], // [LOD0, LOD1, LOD2]
+      medium: [0, 0, 0],
+      large: [0, 0, 0],
+    }
 
     // Collect all trees from all chunks
     const allTrees: TreeInstance[] = []
@@ -197,26 +235,41 @@ export class Forest {
       allTrees.push(...trees)
     }
 
-    // Place each tree in the appropriate instanced mesh
+    // Place each tree in the appropriate LOD level based on distance
     for (const tree of allTrees) {
+      // Calculate distance from camera
+      const distance = this.cameraPosition.distanceTo(tree.position)
+
+      // Determine LOD level
+      const lodLevel = this.lodManager.getLODLevel(distance)
+
+      // Skip if should be culled
+      if (lodLevel === -1) continue
+
+      // Frustum culling: estimate tree bounding radius based on scale
+      const boundingRadius = tree.scale * 15 // Approximate tree height/width
+      if (!this.frustumCuller.isInFrustum(tree.position, boundingRadius)) {
+        continue // Skip trees outside view frustum
+      }
+
       const sizeIndex = tree.sizeIndex
       let currentCount: number
 
       if (sizeIndex === 0) {
-        currentCount = counts.small
-        counts.small++
+        currentCount = counts.small[lodLevel]
+        counts.small[lodLevel]++
       } else if (sizeIndex === 1) {
-        currentCount = counts.medium
-        counts.medium++
+        currentCount = counts.medium[lodLevel]
+        counts.medium[lodLevel]++
       } else {
-        currentCount = counts.large
-        counts.large++
+        currentCount = counts.large[lodLevel]
+        counts.large[lodLevel]++
       }
 
       // Check if we've exceeded max instances
       if (currentCount >= this.maxInstancesPerSize) {
         console.warn(
-          `Exceeded max instances for size ${sizeIndex}. Increase maxInstancesPerSize.`,
+          `Exceeded max instances for size ${sizeIndex} LOD ${lodLevel}`,
         )
         continue
       }
@@ -227,25 +280,32 @@ export class Forest {
       dummy.scale.setScalar(tree.scale)
       dummy.updateMatrix()
 
-      // Apply to both branches and leaves
-      this.branchMeshes[sizeIndex].setMatrixAt(currentCount, dummy.matrix)
-      this.leavesMeshes[sizeIndex].setMatrixAt(currentCount, dummy.matrix)
+      // Apply to both branches and leaves at this LOD level
+      this.branchMeshes[sizeIndex][lodLevel].setMatrixAt(
+        currentCount,
+        dummy.matrix,
+      )
+      this.leavesMeshes[sizeIndex][lodLevel].setMatrixAt(
+        currentCount,
+        dummy.matrix,
+      )
     }
 
     // Update instance counts and mark for update
-    this.branchMeshes[0].count = counts.small
-    this.branchMeshes[1].count = counts.medium
-    this.branchMeshes[2].count = counts.large
-    this.leavesMeshes[0].count = counts.small
-    this.leavesMeshes[1].count = counts.medium
-    this.leavesMeshes[2].count = counts.large
+    for (let sizeIndex = 0; sizeIndex < 3; sizeIndex++) {
+      for (let lodLevel = 0; lodLevel < 3; lodLevel++) {
+        const count =
+          sizeIndex === 0
+            ? counts.small[lodLevel]
+            : sizeIndex === 1
+              ? counts.medium[lodLevel]
+              : counts.large[lodLevel]
 
-    // Mark matrices as needing update
-    for (const mesh of this.branchMeshes) {
-      mesh.instanceMatrix.needsUpdate = true
-    }
-    for (const mesh of this.leavesMeshes) {
-      mesh.instanceMatrix.needsUpdate = true
+        this.branchMeshes[sizeIndex][lodLevel].count = count
+        this.leavesMeshes[sizeIndex][lodLevel].count = count
+        this.branchMeshes[sizeIndex][lodLevel].instanceMatrix.needsUpdate = true
+        this.leavesMeshes[sizeIndex][lodLevel].instanceMatrix.needsUpdate = true
+      }
     }
   }
 
@@ -253,24 +313,31 @@ export class Forest {
     return `${x},${z}`
   }
 
+  public getLODManager(): LODManager {
+    return this.lodManager
+  }
+
   public dispose(): void {
-    // Dispose all meshes
-    for (const mesh of this.branchMeshes) {
-      this.scene.remove(mesh)
-      mesh.geometry.dispose()
-      if (mesh.material instanceof THREE.Material) {
-        mesh.material.dispose()
-      }
-    }
-    for (const mesh of this.leavesMeshes) {
-      this.scene.remove(mesh)
-      mesh.geometry.dispose()
-      if (mesh.material instanceof THREE.Material) {
-        mesh.material.dispose()
+    // Dispose all meshes at all LOD levels
+    for (let sizeIndex = 0; sizeIndex < 3; sizeIndex++) {
+      for (let lodLevel = 0; lodLevel < 3; lodLevel++) {
+        const branchMesh = this.branchMeshes[sizeIndex][lodLevel]
+        const leavesMesh = this.leavesMeshes[sizeIndex][lodLevel]
+
+        this.scene.remove(branchMesh)
+        branchMesh.geometry.dispose()
+        if (branchMesh.material instanceof THREE.Material) {
+          branchMesh.material.dispose()
+        }
+
+        this.scene.remove(leavesMesh)
+        leavesMesh.geometry.dispose()
+        if (leavesMesh.material instanceof THREE.Material) {
+          leavesMesh.material.dispose()
+        }
       }
     }
 
-    // Clear chunk data
     this.chunkTrees.clear()
   }
 }

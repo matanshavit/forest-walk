@@ -12,7 +12,8 @@ export class SceneManager {
 
     // Add fog for atmospheric depth
     const fogColor = 0xd4e5db // Soft misty green
-    this.scene.fog = new THREE.FogExp2(fogColor, 0.015) // Adjust density as needed
+    // Increase fog density to hide more aggressive culling
+    this.scene.fog = new THREE.FogExp2(fogColor, 0.018) // Increased from 0.015
     this.scene.background = new THREE.Color(fogColor)
 
     // Create renderer

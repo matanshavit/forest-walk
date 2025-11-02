@@ -4,6 +4,7 @@ import { LightingManager } from './lighting/Lights'
 import { Forest } from './objects/Forest'
 import { CameraManager } from './scene/Camera'
 import { SceneManager } from './scene/Scene'
+import { LODConfigUI } from './utils/LODConfig'
 import { PerformanceMonitor } from './utils/Performance'
 import { Terrain } from './world/Terrain'
 
@@ -15,6 +16,7 @@ class App {
   private lightingManager: LightingManager
   private controlsManager: ControlsManager
   private performanceMonitor: PerformanceMonitor
+  private lodConfigUI?: LODConfigUI
   private animationFrameId: number | null = null
 
   constructor() {
@@ -48,6 +50,9 @@ class App {
     // Create performance monitor
     this.performanceMonitor = new PerformanceMonitor(this.sceneManager.renderer)
 
+    // Create LOD config UI (optional - for tuning)
+    this.lodConfigUI = new LODConfigUI(this.forest.getLODManager())
+
     // Start animation loop
     this.animate()
 
@@ -78,6 +83,9 @@ class App {
     // Update terrain chunks based on camera position
     this.terrain.update(this.cameraManager.camera.position, performance.now())
 
+    // Update forest LOD and frustum culling based on camera
+    this.forest.update(this.cameraManager.camera)
+
     // Render scene
     this.sceneManager.render(this.cameraManager.camera)
 
@@ -95,6 +103,7 @@ class App {
     this.lightingManager.dispose()
     this.controlsManager.dispose()
     this.performanceMonitor.dispose()
+    this.lodConfigUI?.dispose()
     this.sceneManager.dispose()
   }
 }
